@@ -1,0 +1,50 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "ai.humblebee.sololeveling"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ai.humblebee.sololeveling"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir("$buildDir/generated/assets/reactStatus")
+        }
+    }
+}
+
+def reactStatusDir = file("$rootDir/react/status")
+def reactStatusOutputDir = file("$buildDir/generated/assets/reactStatus")
+def viteBin = file("$rootDir/../web/node_modules/.bin/vite${System.getProperty("os.name").toLowerCase().contains("windows") ? ".CMD" : ""}")
+
+tasks.register("bundleStatusReact", Exec) {
+    workingDir reactStatusDir
+    inputs.dir(reactStatusDir)
+    inputs.dir(file("$rootDir/../web/node_modules/react"))
+    inputs.dir(file("$rootDir/../web/node_modules/react-dom"))
+    outputs.dir(reactStatusOutputDir)
+
+    doFirst {
+        if (!viteBin.exists()) {
+            throw new GradleException("Missing Vite at ${viteBin}. Run pnpm install from the repository root before building mobile.")
+        }
+    }
+
+    if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+        commandLine "cmd", "/c", viteBin.absolutePath, "build", "--config", file("$reactStatusDir/vite.config.mjs").absolutePath
+    } else {
+        commandLine viteBin.absolutePath, "build", "--config", file("$reactStatusDir/vite.config.mjs").absolutePath
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("bundleStatusReact")
+}

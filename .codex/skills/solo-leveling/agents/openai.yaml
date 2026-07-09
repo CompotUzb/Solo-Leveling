@@ -1,0 +1,6 @@
+interface:
+  display_name: "Solo Leveling"
+  short_description: "Work on the Solo Leveling repo"
+  default_prompt: "Use $solo-leveling to modify the Solo Leveling project."
+policy:
+  allow_implicit_invocation: true

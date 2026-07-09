@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Solo Leveling</string>
+    <string name="accessibility_service_label">Solo Leveling App Blocker</string>
+    <string name="accessibility_service_description">Blocks configured social media apps while the Solo Leveling daily penalty is active.</string>
+</resources>

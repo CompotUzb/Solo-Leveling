@@ -1,0 +1,25 @@
+{
+  "name": "solo-leveling",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently \"corepack pnpm dev:server\" \"corepack pnpm dev:web\"",
+    "dev:server": "corepack pnpm --filter @solo-leveling/server dev",
+    "dev:web": "corepack pnpm --filter @solo-leveling/web dev",
+    "build": "corepack pnpm -r --sort build",
+    "start": "corepack pnpm --filter @solo-leveling/server start",
+    "migrate": "corepack pnpm --filter @solo-leveling/server migrate",
+    "app": "corepack pnpm --filter @solo-leveling/server app",
+    "reset:local-data": "corepack pnpm --filter @solo-leveling/server app reset-local-data",
+    "test": "corepack pnpm --filter @solo-leveling/shared build && corepack pnpm -r test",
+    "lint": "corepack pnpm --filter @solo-leveling/shared build && corepack pnpm -r lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

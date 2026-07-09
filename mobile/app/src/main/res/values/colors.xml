@@ -1,0 +1,8 @@
+<resources>
+    <color name="solo_bg">#05070f</color>
+    <color name="solo_panel">#0d1426</color>
+    <color name="solo_text">#e6eefc</color>
+    <color name="solo_muted">#8d9bb5</color>
+    <color name="solo_accent">#38e1ff</color>
+    <color name="solo_danger">#f87171</color>
+</resources>
