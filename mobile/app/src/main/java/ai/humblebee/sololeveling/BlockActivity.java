@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,16 +27,18 @@ public class BlockActivity extends Activity {
         getWindow().setStatusBarColor(Ui.BG);
         getWindow().setNavigationBarColor(Ui.NAV);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Ui.BG);
-        Ui.applySystemBarPadding(root, 18, 18, 18, 18);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setBackgroundColor(Ui.BG);
 
-        LinearLayout card = Ui.card(this, Ui.tint(Ui.DANGER, 14), Ui.tint(Ui.DANGER, 96));
+        LinearLayout card = Ui.column(this);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
+        Ui.applySystemBarPadding(card, 24, 42, 24, 28);
 
         TextView badge = Ui.appBadge(this, "LOCK", Ui.DANGER);
+        badge.setTextSize(10);
+        badge.setBackground(Ui.roundedStroke(this, Ui.tint(Ui.DANGER, 24), 18, Ui.tint(Ui.DANGER, 110), 1));
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72));
         badgeLp.setMargins(0, 0, 0, Ui.dp(this, 18));
         card.addView(badge, badgeLp);
@@ -43,10 +46,12 @@ public class BlockActivity extends Activity {
         TextView label = Ui.label(this, "App Blocked");
         label.setTextColor(Ui.DANGER);
         label.setGravity(Gravity.CENTER);
+        label.setLetterSpacing(0.2f);
         card.addView(label);
 
         TextView title = Ui.heading(this, "Penalty Active", 34, Ui.TEXT);
         title.setGravity(Gravity.CENTER);
+        title.setAllCaps(true);
         card.addView(title);
 
         TextView body = Ui.text(
@@ -57,11 +62,16 @@ public class BlockActivity extends Activity {
                 Typeface.NORMAL
         );
         body.setGravity(Gravity.CENTER);
-        card.addView(body);
+        LinearLayout.LayoutParams bodyLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        bodyLp.setMargins(0, Ui.dp(this, 12), 0, Ui.dp(this, 18));
+        card.addView(body, bodyLp);
 
         String reason = SoloPrefs.penaltyReason(this);
         if (reason != null && !reason.isEmpty()) {
-            card.addView(Ui.alert(this, "Penalty reason", reason, Ui.WARNING));
+            card.addView(Ui.alert(this, "Penalty reason", reason, Ui.DANGER));
         } else {
             card.addView(Ui.alert(this, "Penalty reason", "Daily discipline state is currently restricted.", Ui.DANGER));
         }
@@ -70,14 +80,14 @@ public class BlockActivity extends Activity {
         refresh.setOnClickListener(view -> refresh());
         card.addView(refresh);
 
-        Button openTracker = Ui.button(this, "Open Solo Leveling");
+        Button openTracker = Ui.button(this, "Open Solo Tracker");
         openTracker.setOnClickListener(view -> {
             startActivity(new Intent(this, MainActivity.class));
             finish();
         });
         card.addView(openTracker);
 
-        TextView footer = Ui.label(this, "Penalty enforced");
+        TextView footer = Ui.label(this, "Penalty enforced · No bypass available");
         footer.setTextColor(Ui.DANGER);
         footer.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams footerLp = new LinearLayout.LayoutParams(
@@ -87,9 +97,11 @@ public class BlockActivity extends Activity {
         footerLp.setMargins(0, Ui.dp(this, 14), 0, 0);
         card.addView(footer, footerLp);
 
-        root.addView(card);
-
-        setContentView(root);
+        scroll.addView(card, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(scroll);
     }
 
     private void refresh() {
