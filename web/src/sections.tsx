@@ -440,6 +440,26 @@ export function SalahTracker({ salah }: { salah: AsyncState<SalahSnapshot> }) {
                   {day.completedCount} / {day.totalCount}
                 </Badge>
               </div>
+              <div className="salah-focus-grid">
+                <div className="salah-focus-panel">
+                  <span className="muted">Current Prayer</span>
+                  <strong>{day.currentPrayer?.prayerName ?? "Waiting"}</strong>
+                  <span className={day.currentPrayer?.completed ? "ok" : "accent"}>
+                    {day.currentPrayer
+                      ? day.currentPrayer.completed
+                        ? "Complete"
+                        : "Pending"
+                      : "Not started"}
+                  </span>
+                </div>
+                <div className="salah-focus-panel">
+                  <span className="muted">Next Prayer</span>
+                  <strong>{day.nextPrayer?.prayerName ?? "Done"}</strong>
+                  <span className="accent">
+                    {day.nextPrayer ? formatCountdown(day.nextPrayer.secondsUntil) : "All clear"}
+                  </span>
+                </div>
+              </div>
               <ul className="salah-list">
                 {day.prayers.map((prayer) => (
                   <li key={prayer.prayerName} className={prayer.completed ? "is-done" : ""}>
@@ -460,9 +480,21 @@ export function SalahTracker({ salah }: { salah: AsyncState<SalahSnapshot> }) {
               </div>
               {day.nextPrayer ? (
                 <div className="salah-next">
-                  <span className="muted">Next Prayer</span>
+                  <span className="muted">Countdown to next prayer</span>
                   <strong>{day.nextPrayer.prayerName}</strong>
                   <span className="accent">{formatCountdown(day.nextPrayer.secondsUntil)}</span>
+                </div>
+              ) : null}
+              <div className="salah-next muted-panel">
+                <span className="muted">Remaining Today</span>
+                <strong>{day.remainingCount}</strong>
+                <span className="muted">prayers</span>
+              </div>
+              {day.nextReminder ? (
+                <div className="salah-next salah-reminder-next">
+                  <span className="muted">Next Reminder</span>
+                  <strong>{day.nextReminder.prayerName}</strong>
+                  <span className="accent">{formatCountdown(day.nextReminder.secondsUntil)}</span>
                 </div>
               ) : null}
               <div className="chips">

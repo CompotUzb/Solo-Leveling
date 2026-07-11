@@ -2,11 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyMigrations, openDatabase, type Db } from "./db.js";
 import {
   completeSalah,
+  ensureSalahReminderSchedule,
   ensureSalahDay,
   fetchPrayerTimes,
   formatSalahMessage,
+  formatSalahReminderTitle,
   getSalahSnapshot,
   parseSalahCompletion,
+  processDueSalahReminders,
   runSalahMidnight,
 } from "./salah.js";
 
@@ -32,6 +35,43 @@ describe("Salah tracker", () => {
 
   it.each(["Fajr done", "Done fajr", "Prayed fajr", "Completed fajr", "Finished asr", "Maghrib complete", "Isha done"])("parses completion: %s", (message) => {
     expect(parseSalahCompletion(message)).not.toBeNull();
+  });
+
+  it("formats reminder system-output titles", () => {
+    expect(formatSalahReminderTitle("pre5", "Fajr")).toBe("🕌 Fajr begins in 5 minutes");
+    expect(formatSalahReminderTitle("start", "Fajr")).toBe("🕌 Time for Fajr");
+    expect(formatSalahReminderTitle("followup", "Fajr")).toBe("⏰ Reminder: Fajr is still pending.");
+  });
+
+  it("creates persistent relative reminders and cancels them on completion", () => {
+    const database = setup();
+    ensureSalahDay(database, "local-user", "2026-07-11", times);
+    ensureSalahReminderSchedule(database, {
+      userId: "local-user",
+      date: "2026-07-11",
+      timezone: "Asia/Tashkent",
+      now: "2026-07-10T20:00:00Z",
+    });
+    const reminderCount = database.prepare("select count(*) as count from salah_reminders where user_id='local-user' and date='2026-07-11'").get();
+    expect(reminderCount).toEqual({ count: 51 });
+    const notify = vi.fn();
+    const due = processDueSalahReminders(database, {
+      userId: "local-user",
+      now: new Date("2026-07-10T23:07:00Z"),
+      notify,
+    });
+    expect(due.sent).toBe(2);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "🕌 Fajr begins in 5 minutes" }));
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: "🕌 Time for Fajr" }));
+    completeSalah(database, {
+      userId: "local-user",
+      date: "2026-07-11",
+      prayerName: "Fajr",
+      discordMessageId: "fajr-done",
+      now: "2026-07-11T00:05:00Z",
+    });
+    const pendingFajr = database.prepare("select count(*) as count from salah_reminders where user_id='local-user' and date='2026-07-11' and prayer_name='Fajr' and status='pending'").get();
+    expect(pendingFajr).toEqual({ count: 0 });
   });
 
   it("creates one cached day and formats its schedule", () => {

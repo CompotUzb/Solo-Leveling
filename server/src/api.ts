@@ -260,6 +260,23 @@ export function createApi({
             completedCount: snapshot.completedCount,
             totalCount: snapshot.totalCount,
             complete: snapshot.complete,
+            currentPrayer: snapshot.currentPrayer
+              ? {
+                  prayerName: snapshot.currentPrayer.name,
+                  scheduledTime: snapshot.currentPrayer.scheduledTime,
+                  completed: snapshot.currentPrayer.completed,
+                  status: snapshot.currentPrayer.status,
+                }
+              : null,
+            remainingCount: snapshot.remainingCount,
+            nextReminder: snapshot.nextReminder
+              ? {
+                  prayerName: snapshot.nextReminder.prayerName,
+                  kind: snapshot.nextReminder.kind,
+                  scheduledAt: snapshot.nextReminder.scheduledAt,
+                  secondsUntil: snapshot.nextReminder.secondsUntil,
+                }
+              : null,
             nextPrayer: snapshot.nextPrayer
               ? {
                   prayerName: snapshot.nextPrayer.name,

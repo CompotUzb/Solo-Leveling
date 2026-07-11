@@ -35,6 +35,8 @@ import {
 import {
   createSalahForDate,
   formatSalahCompletionReply,
+  getNextSalahReminderDueAt,
+  processDueSalahReminders,
   recordSalahThreadMessage,
   runSalahEvaluation,
   type SalahPublisher,
@@ -175,6 +177,41 @@ async function main() {
   };
   scheduleEvaluation();
 
+  let salahReminderTimer: ReturnType<typeof setTimeout> | null = null;
+  const runSalahReminders = () => {
+    if (!config.enableSalahTracker) return;
+    try {
+      const result = processDueSalahReminders(db, {
+        userId: SEED_USER_ID,
+        notify: (input) => notifier.notify(input),
+        onSent: () => api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "reminder" }),
+      });
+      if (result.processed > 0) {
+        api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "reminder" });
+        api.broadcast("notification", { type: "system", userId: SEED_USER_ID, title: "Salah reminder" });
+      }
+    } catch (error) {
+      console.error(
+        "salah reminder processing failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  };
+  const scheduleSalahReminders = () => {
+    if (!config.enableSalahTracker) return;
+    if (salahReminderTimer) clearTimeout(salahReminderTimer);
+    const next = getNextSalahReminderDueAt(db, SEED_USER_ID);
+    if (!next) return;
+    const delay = Math.max(0, Date.parse(next) - Date.now());
+    salahReminderTimer = setTimeout(() => {
+      runSalahReminders();
+      scheduleSalahReminders();
+    }, delay);
+    salahReminderTimer.unref?.();
+  };
+  runSalahReminders();
+  scheduleSalahReminders();
+
   if (!config.skipDiscordLogin) {
     let dailyPublisher: DailyQuestPublisher | null = null;
     let salahPublisher: SalahPublisher | null = null;
@@ -261,6 +298,7 @@ async function main() {
         });
         api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "generated" });
       }
+      scheduleSalahReminders();
       return result;
     };
     const scheduleCreation = () => {
@@ -548,10 +586,10 @@ async function main() {
         );
         await replyInChunks(
           message,
-          formatSalahCompletionReply(
-            recorded.prayerName,
-            recorded.result.allCompleted,
-          ),
+          formatSalahCompletionReply(recorded.prayerName, recorded.result.allCompleted, {
+            completedCount: recorded.result.completedCount,
+            totalCount: recorded.result.totalCount,
+          }),
         ).catch((error) =>
           console.error(
             "salah completion reply failed:",
@@ -561,15 +599,18 @@ async function main() {
         notifier.notify({
           userId: SEED_USER_ID,
           type: "system",
-          title: recorded.result.allCompleted
-            ? "🕌 All prayers completed"
-            : `🕌 ${recorded.prayerName} completed`,
+          title: `✅ ${recorded.prayerName} completed.`,
+          body: [
+            `🔥 Today's Salah Progress: ${recorded.result.completedCount}/${recorded.result.totalCount}`,
+            recorded.result.allCompleted ? "🎉 All five prayers completed." : null,
+          ].filter(Boolean).join("\n"),
           metadata: {
             source: "salah",
             prayerName: recorded.prayerName,
             date: localDateFor(new Date(), config.timezone),
           },
         });
+        scheduleSalahReminders();
         api.broadcast("salah.updated", {
           userId: SEED_USER_ID,
           reason: "thread_message",

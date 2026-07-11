@@ -141,6 +141,19 @@ export interface SalahDay {
   completedCount: number;
   totalCount: number;
   complete: boolean;
+  currentPrayer: {
+    prayerName: SalahPrayer["prayerName"];
+    scheduledTime: string;
+    completed: boolean;
+    status: "pending" | "complete";
+  } | null;
+  remainingCount: number;
+  nextReminder: {
+    prayerName: SalahPrayer["prayerName"];
+    kind: "pre5" | "start" | "late15" | "late30" | "followup";
+    scheduledAt: string;
+    secondsUntil: number;
+  } | null;
   nextPrayer: { prayerName: SalahPrayer["prayerName"]; scheduledTime: string; secondsUntil: number } | null;
 }
 
