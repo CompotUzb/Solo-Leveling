@@ -13,6 +13,7 @@ import {
 } from "./boundary.js";
 import { persistRawMessage, type RawDiscordMessageInput } from "./db.js";
 import type { DailyQuestPublisher } from "./dailyWorkflow.js";
+import type { SalahPublisher } from "./salah.js";
 import type { MainCommand } from "./mainQuestCommands.js";
 
 export type SummaryCommandKind = "today" | "week";
@@ -121,6 +122,7 @@ export async function replyInChunks(
 }
 
 export const DEFAULT_DAILY_QUEST_CHANNEL_NAME = "daily-quests";
+export const DEFAULT_SALAH_CHANNEL_NAME = "salah";
 
 function collectionValues<T>(collection: unknown): T[] {
   if (!collection) return [];
@@ -177,6 +179,14 @@ export async function resolveDailyQuestChannel(
   if (existing) return existing.id;
 
   throw new Error(`Discord channel #${name} not found`);
+}
+
+export async function resolveSalahChannel(
+  client: Client,
+  guildId: string,
+  name = DEFAULT_SALAH_CHANNEL_NAME,
+): Promise<string> {
+  return resolveDailyQuestChannel(client, guildId, name);
 }
 
 // Normalize a discord.js Message into the minimal shape the boundary filter understands.
@@ -362,6 +372,31 @@ export function createDailyQuestPublisher(client: Client): DailyQuestPublisher {
   };
 }
 
+export function createSalahPublisher(client: Client): SalahPublisher {
+  return {
+    async publish(input) {
+      const channel = (await client.channels.fetch(input.channelId)) as DailyQuestChannelLike | null;
+      if (!channel || typeof channel.send !== "function")
+        throw new Error("salah channel is not text-based");
+      const [message] = await sendDiscordMessage(
+        { send: channel.send.bind(channel) },
+        input.content,
+      );
+      if (typeof message.startThread !== "function")
+        throw new Error("salah message cannot create a thread");
+      const thread = await message.startThread({
+        name: input.threadName,
+        autoArchiveDuration: 1440,
+      });
+      return {
+        parentMessageId: message.id,
+        threadId: thread.id,
+        threadName: thread.name,
+      };
+    },
+  };
+}
+
 export interface DiscordClientOptions {
   storeRawMessage?: (input: RawDiscordMessageInput) => unknown;
   onRawMessageStored?: (input: RawDiscordMessageInput, stored: unknown) => void;
@@ -369,6 +404,7 @@ export interface DiscordClientOptions {
   onDailyCommand?: (kind: DailyCommandKind, message: Message) => unknown;
   onMainCommand?: (command: MainCommand, message: Message) => unknown;
   onDailyQuestMessage?: (message: Message) => unknown;
+  onSalahMessage?: (message: Message) => unknown;
 }
 
 export function createDiscordClient(
@@ -423,7 +459,11 @@ export function createDiscordClient(
       !message.webhookId &&
       !message.system
     ) {
-      if (like.parentChannelId) options.onDailyQuestMessage?.(message);
+      if (like.parentChannelId) {
+        if (like.parentChannelId === config.salahChannelId)
+          options.onSalahMessage?.(message);
+        else options.onDailyQuestMessage?.(message);
+      }
     }
     if (!isMessageInTrackedBoundary(like, boundary)) return;
     const input = toRawMessageInput(message, config);

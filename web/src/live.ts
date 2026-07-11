@@ -11,6 +11,7 @@ const REFRESH_EVENTS = [
   "stats.updated",
   "stats.player.updated",
   "daily.updated",
+  "salah.updated",
   "notification",
   "discord.message",
 ] as const;

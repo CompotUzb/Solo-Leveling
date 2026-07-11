@@ -112,7 +112,7 @@ body {
   grid-template-areas:
     "profile profile profile profile profile profile profile profile experience experience experience experience"
     "stats   stats   stats   stats   stats   stats   stats   stats   main        main        main        main"
-    "metrics metrics metrics metrics metrics metrics metrics metrics main        main        main        main"
+    "metrics metrics metrics metrics salah   salah   salah   salah   main        main        main        main"
     "notify  notify  notify  notify  notify  notify  notify  notify  achievements achievements achievements achievements"
     "recent  recent  recent  recent  recent  recent  recent  recent  achievements achievements achievements achievements"
     "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly       weekly       weekly       weekly";
@@ -128,6 +128,9 @@ body {
 }
 .area-metrics {
   grid-area: metrics;
+}
+.area-salah {
+  grid-area: salah;
 }
 .area-daily {
   grid-area: daily;
@@ -710,6 +713,67 @@ code {
   align-self: flex-end;
 }
 
+
+/* Salah tracker */
+.salah-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.salah-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.salah-headline .eyebrow {
+  margin-bottom: 3px;
+}
+.salah-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.salah-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.salah-list li.is-done {
+  border-color: rgba(52, 211, 153, 0.22);
+  opacity: 0.8;
+}
+.salah-marker {
+  color: var(--cyan);
+  font-weight: 800;
+  filter: drop-shadow(0 0 6px rgba(56, 225, 255, 0.35));
+}
+.salah-list li.is-done .salah-marker {
+  color: var(--ok);
+}
+.salah-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.salah-next {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.84rem;
+}
+
 /* System notifications */
 .notification-panel {
   display: flex;
@@ -1156,6 +1220,7 @@ code {
       "stats"
       "main"
       "metrics"
+      "salah"
       "notify"
       "achievements"
       "recent"

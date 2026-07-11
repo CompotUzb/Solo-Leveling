@@ -55,6 +55,7 @@ import {
   withMainQuestDisplayIds,
 } from "./mainQuestIds.js";
 import { localDateFor } from "./dailyWorkflow.js";
+import { getSalahSnapshot } from "./salah.js";
 import { buildDailySummary, buildWeeklySummary } from "./summaries.js";
 
 export type DiscordStatus = "connected" | "disconnected" | "skipped";
@@ -220,6 +221,60 @@ export function createApi({
   app.get<{ Querystring: { userId?: string } }>("/api/daily", async (req) => {
     const userId = req.query.userId ?? DEFAULT_USER_ID;
     return getDailySnapshot(db, userId, todayLocal());
+  });
+
+  app.get<{ Querystring: { userId?: string } }>("/api/salah", async (req) => {
+    const userId = req.query.userId ?? DEFAULT_USER_ID;
+    const snapshot = getSalahSnapshot(
+      db,
+      userId,
+      todayLocal(),
+      new Date(),
+      config.timezone,
+    );
+    return {
+      date: snapshot.date,
+      enabled: config.enableSalahTracker,
+      city: config.salahCity,
+      country: config.salahCountry,
+      day: snapshot.totalCount
+        ? {
+            id: null,
+            date: snapshot.date,
+            status: snapshot.complete ? "complete" : "active",
+            evaluated: false,
+            threadId: snapshot.threadId,
+            threadName: null,
+            streakDayNumber: snapshot.streak.current + 1,
+            allCompletedBonusGranted: snapshot.complete,
+            prayers: snapshot.prayers.map((prayer) => ({
+              id: null,
+              date: snapshot.date,
+              prayerName: prayer.name,
+              scheduledTime: prayer.scheduledTime,
+              completed: prayer.completed,
+              completedAt: prayer.completedAt,
+              discordMessageId: null,
+              threadId: snapshot.threadId,
+            })),
+            completedCount: snapshot.completedCount,
+            totalCount: snapshot.totalCount,
+            complete: snapshot.complete,
+            nextPrayer: snapshot.nextPrayer
+              ? {
+                  prayerName: snapshot.nextPrayer.name,
+                  scheduledTime: snapshot.nextPrayer.scheduledTime,
+                  secondsUntil: snapshot.nextPrayer.minutesRemaining * 60,
+                }
+              : null,
+          }
+        : null,
+      state: {
+        currentStreak: snapshot.streak.current,
+        longestStreak: snapshot.streak.longest,
+        lastEvaluatedDate: null,
+      },
+    };
   });
 
   app.post("/api/daily/evaluate", async (req) => {
