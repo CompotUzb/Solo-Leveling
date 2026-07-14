@@ -23,13 +23,11 @@ android {
 
 def reactStatusDir = file("$rootDir/react/status")
 def reactStatusOutputDir = file("$buildDir/generated/assets/reactStatus")
-def viteBin = file("$rootDir/../web/node_modules/.bin/vite${System.getProperty("os.name").toLowerCase().contains("windows") ? ".CMD" : ""}")
+def viteBin = file("$rootDir/../web/node_modules/vite/bin/vite.js")
 
 tasks.register("bundleStatusReact", Exec) {
     workingDir reactStatusDir
     inputs.dir(reactStatusDir)
-    inputs.dir(file("$rootDir/../web/node_modules/react"))
-    inputs.dir(file("$rootDir/../web/node_modules/react-dom"))
     outputs.dir(reactStatusOutputDir)
 
     doFirst {
@@ -38,11 +36,7 @@ tasks.register("bundleStatusReact", Exec) {
         }
     }
 
-    if (System.getProperty("os.name").toLowerCase().contains("windows")) {
-        commandLine "cmd", "/c", viteBin.absolutePath, "build", "--config", file("$reactStatusDir/vite.config.mjs").absolutePath
-    } else {
-        commandLine viteBin.absolutePath, "build", "--config", file("$reactStatusDir/vite.config.mjs").absolutePath
-    }
+    commandLine "node", viteBin.absolutePath, "build", "--config", file("$reactStatusDir/vite.config.mjs").absolutePath
 }
 
 tasks.named("preBuild").configure {

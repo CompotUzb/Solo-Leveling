@@ -35,6 +35,10 @@ mobile/.idea/
 mobile/**/build/
 mobile/local.properties
 mobile/**/*.iml
+mobile/gradle/gradle-daemon-jvm.properties
+
+# Local Figma Make export used as a visual implementation reference
+figma_refrence/
 
 # IDE/editor local metadata
 .idea/
