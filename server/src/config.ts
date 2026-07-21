@@ -62,6 +62,7 @@ const envSchema = z.object({
   TRACKED_CHANNEL_IDS: z.string().min(1),
   COMMANDS_CHANNEL_ID: optionalChannelId,
   DAILY_QUESTS_CHANNEL_ID: optionalChannelId,
+  SALAH_CHANNEL_ID: optionalChannelId,
   MIND_TRAINING_CHANNEL_ID: optionalChannelId,
   BODY_TRAINING_CHANNEL_ID: optionalChannelId,
   WORK_SKILL_CHANNEL_ID: optionalChannelId,
@@ -76,6 +77,10 @@ const envSchema = z.object({
   DAILY_QUEST_CREATE_TIME: localTime.default("06:00"),
   DAILY_EVALUATION_TIME: localTime.default("00:00"),
   DAILY_QUEST_TIER_OVERRIDE: z.coerce.number().int().min(1).max(3).optional(),
+  ENABLE_SALAH_TRACKER: envBoolean.default(true),
+  CITY: z.string().default("Tashkent"),
+  COUNTRY: z.string().default("Uzbekistan"),
+  CALCULATION_METHOD: z.coerce.number().int().positive().default(2),
   AI_MAIN_QUEST_ENABLED: envBoolean.default(false),
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_MODEL: z.string().default("gpt-4o"),
@@ -119,6 +124,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const trackedChannelIds = [
     ...parsed.TRACKED_CHANNEL_IDS.split(",").map((id) => id.trim()),
     ...Object.keys(channelCategories),
+    parsed.SALAH_CHANNEL_ID,
   ].filter(Boolean);
   const uniqueTrackedChannelIds = [...new Set(trackedChannelIds)];
 
@@ -135,6 +141,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     channelCategories,
     commandsChannelId: parsed.COMMANDS_CHANNEL_ID ?? null,
     dailyQuestsChannelId: parsed.DAILY_QUESTS_CHANNEL_ID ?? null,
+    salahChannelId: parsed.SALAH_CHANNEL_ID ?? null,
     systemOutputChannelId: parsed.SYSTEM_OUTPUT_CHANNEL_ID ?? null,
     apiHost: parsed.API_HOST,
     apiPort: parsed.API_PORT,
@@ -149,6 +156,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       parsed.NODE_ENV === "production"
         ? null
         : (parsed.DAILY_QUEST_TIER_OVERRIDE ?? null),
+    enableSalahTracker: parsed.ENABLE_SALAH_TRACKER,
+    salahCity: parsed.CITY.trim() || "Tashkent",
+    salahCountry: parsed.COUNTRY.trim() || "Uzbekistan",
+    salahCalculationMethod: parsed.CALCULATION_METHOD,
     aiMainQuestEnabled: parsed.AI_MAIN_QUEST_ENABLED,
     openAiApiKey: parsed.OPENAI_API_KEY.trim(),
     openAiModel: parsed.OPENAI_MODEL,
@@ -163,6 +174,8 @@ export function publicConfig(config: AppConfig) {
     channelCategories: config.channelCategories,
     systemOutputConfigured: config.systemOutputChannelId != null,
     dailyQuestsConfigured: config.dailyQuestsChannelId != null,
+    salahConfigured: config.salahChannelId != null,
+    salahEnabled: config.enableSalahTracker,
     storeMessageContent: config.storeMessageContent,
     apiHost: config.apiHost,
     apiPort: config.apiPort,

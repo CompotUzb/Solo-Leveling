@@ -117,6 +117,61 @@ export interface DailySnapshot {
   statKeys: string[];
 }
 
+export interface SalahPrayer {
+  id: string | null;
+  date: string;
+  prayerName: "Fajr" | "Dhuhr" | "Asr" | "Maghrib" | "Isha";
+  scheduledTime: string;
+  completed: boolean;
+  completedAt: string | null;
+  discordMessageId: string | null;
+  threadId: string | null;
+}
+
+export interface SalahDay {
+  id: string | null;
+  date: string;
+  status: string;
+  evaluated: boolean;
+  threadId: string | null;
+  threadName: string | null;
+  streakDayNumber: number | null;
+  allCompletedBonusGranted: boolean;
+  prayers: SalahPrayer[];
+  completedCount: number;
+  totalCount: number;
+  complete: boolean;
+  currentPrayer: {
+    prayerName: SalahPrayer["prayerName"];
+    scheduledTime: string;
+    completed: boolean;
+    status: "pending" | "complete";
+  } | null;
+  remainingCount: number;
+  nextReminder: {
+    prayerName: SalahPrayer["prayerName"];
+    kind: "pre5" | "start" | "late15" | "late30" | "followup";
+    scheduledAt: string;
+    secondsUntil: number;
+  } | null;
+  nextPrayer: { prayerName: SalahPrayer["prayerName"]; scheduledTime: string; secondsUntil: number } | null;
+}
+
+export interface SalahStateView {
+  currentStreak: number;
+  longestStreak: number;
+  lastEvaluatedDate: string | null;
+}
+
+export interface SalahSnapshot {
+  date: string;
+  enabled: boolean;
+  city: string;
+  country: string;
+  day: SalahDay | null;
+  state: SalahStateView;
+}
+
 export interface Rank {
   totalXp: number;
   level: number;

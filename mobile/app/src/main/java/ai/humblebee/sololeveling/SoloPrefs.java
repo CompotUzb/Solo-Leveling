@@ -1,7 +1,9 @@
 package ai.humblebee.sololeveling;
 
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.view.accessibility.AccessibilityManager;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -80,6 +82,24 @@ final class SoloPrefs {
 
     static boolean penaltyActive(Context context) {
         return prefs(context).getBoolean(KEY_PENALTY_ACTIVE, false);
+    }
+
+    static boolean accessibilityServiceEnabled(Context context) {
+        AccessibilityManager manager =
+                (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+        if (manager == null || !manager.isEnabled()) return false;
+
+        String expectedPackage = context.getPackageName();
+        String expectedClass = SocialBlockerAccessibilityService.class.getName();
+        for (AccessibilityServiceInfo info : manager.getEnabledAccessibilityServiceList(
+                AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+            if (info.getResolveInfo() == null || info.getResolveInfo().serviceInfo == null) continue;
+            if (expectedPackage.equals(info.getResolveInfo().serviceInfo.packageName)
+                    && expectedClass.equals(info.getResolveInfo().serviceInfo.name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static String penaltyReason(Context context) {

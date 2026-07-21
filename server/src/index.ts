@@ -11,7 +11,9 @@ import {
   createDiscordClient,
   createChannelMessageSender,
   createDailyQuestPublisher,
+  createSalahPublisher,
   resolveDailyQuestChannel,
+  resolveSalahChannel,
   replyInChunks,
 } from "./bot.js";
 import { createNotifier } from "./notifications.js";
@@ -30,6 +32,15 @@ import {
   recordDailyThreadMessage,
   type DailyQuestPublisher,
 } from "./dailyWorkflow.js";
+import {
+  createSalahForDate,
+  formatSalahCompletionReply,
+  getNextSalahReminderDueAt,
+  processDueSalahReminders,
+  recordSalahThreadMessage,
+  runSalahEvaluation,
+  type SalahPublisher,
+} from "./salah.js";
 import { buildDailySummary, buildWeeklySummary } from "./summaries.js";
 import { suggestMainQuestDraft } from "./mainQuestAi.js";
 import { createMainQuestCommandHandler } from "./mainQuestCommands.js";
@@ -134,10 +145,27 @@ async function main() {
     }
   };
   runDailyEval();
+  const runSalahEval = () => {
+    if (!config.enableSalahTracker) return;
+    try {
+      const today = localDateFor(new Date(), config.timezone);
+      runSalahEvaluation(db, SEED_USER_ID, today, {
+        notify: (input) => notifier.notify(input),
+      });
+      api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "scheduled" });
+    } catch (error) {
+      console.error(
+        "salah evaluation failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  };
+  runSalahEval();
   const scheduleEvaluation = () => {
     setTimeout(
       () => {
         runDailyEval();
+        runSalahEval();
         scheduleEvaluation();
       },
       millisecondsUntilLocalTime(
@@ -149,14 +177,55 @@ async function main() {
   };
   scheduleEvaluation();
 
+  let salahReminderTimer: ReturnType<typeof setTimeout> | null = null;
+  const runSalahReminders = () => {
+    if (!config.enableSalahTracker) return;
+    try {
+      const result = processDueSalahReminders(db, {
+        userId: SEED_USER_ID,
+        notify: (input) => notifier.notify(input),
+        onSent: () => api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "reminder" }),
+      });
+      if (result.processed > 0) {
+        api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "reminder" });
+        api.broadcast("notification", { type: "system", userId: SEED_USER_ID, title: "Salah reminder" });
+      }
+    } catch (error) {
+      console.error(
+        "salah reminder processing failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  };
+  const scheduleSalahReminders = () => {
+    if (!config.enableSalahTracker) return;
+    if (salahReminderTimer) clearTimeout(salahReminderTimer);
+    const next = getNextSalahReminderDueAt(db, SEED_USER_ID);
+    if (!next) return;
+    const delay = Math.max(0, Date.parse(next) - Date.now());
+    salahReminderTimer = setTimeout(() => {
+      runSalahReminders();
+      scheduleSalahReminders();
+    }, delay);
+    salahReminderTimer.unref?.();
+  };
+  runSalahReminders();
+  scheduleSalahReminders();
+
   if (!config.skipDiscordLogin) {
     let dailyPublisher: DailyQuestPublisher | null = null;
+    let salahPublisher: SalahPublisher | null = null;
     let dailyQuestsChannelId =
       config.dailyQuestsChannelId &&
       config.dailyQuestsChannelId !== config.commandsChannelId
         ? config.dailyQuestsChannelId
         : null;
+    let salahChannelId =
+      config.salahChannelId && config.salahChannelId !== config.commandsChannelId
+        ? config.salahChannelId
+        : null;
     let resolveDailyQuestsChannel: (() => Promise<string>) | null = null;
+    let resolveSalahChannelId: (() => Promise<string>) | null = null;
     const runDailyCreate = async (force = false) => {
       if (!dailyPublisher) return null;
       if (!dailyQuestsChannelId) {
@@ -200,6 +269,38 @@ async function main() {
       }
       return result;
     };
+    const runSalahCreate = async (force = false) => {
+      if (!config.enableSalahTracker || !salahPublisher) return null;
+      if (!salahChannelId) {
+        if (!resolveSalahChannelId) return null;
+        salahChannelId = await resolveSalahChannelId();
+        console.log(`Salah channel resolved as ${salahChannelId}.`);
+      }
+      const now = new Date();
+      if (!force && !hasReachedLocalTime(now, config.timezone, config.dailyEvaluationTime))
+        return null;
+      const result = await createSalahForDate({
+        db,
+        userId: SEED_USER_ID,
+        localDate: localDateFor(now, config.timezone),
+        channelId: salahChannelId,
+        publisher: salahPublisher,
+        config,
+        ensurePublished: force,
+      });
+      if (result.created) {
+        notifier.notify({
+          userId: SEED_USER_ID,
+          type: "system",
+          title: "Daily Salah generated",
+          body: `${result.day.threadName ?? "Salah thread"} is ready.`,
+          metadata: { date: result.day.date, threadId: result.day.threadId, source: "salah" },
+        });
+        api.broadcast("salah.updated", { userId: SEED_USER_ID, reason: "generated" });
+      }
+      scheduleSalahReminders();
+      return result;
+    };
     const scheduleCreation = () => {
       setTimeout(
         () => {
@@ -215,6 +316,24 @@ async function main() {
           new Date(),
           config.timezone,
           config.dailyQuestCreateTime,
+        ),
+      ).unref();
+    };
+    const scheduleSalahCreation = () => {
+      setTimeout(
+        () => {
+          void runSalahCreate(true).catch((error) =>
+            console.error(
+              "salah creation failed:",
+              error instanceof Error ? error.message : error,
+            ),
+          );
+          scheduleSalahCreation();
+        },
+        millisecondsUntilLocalTime(
+          new Date(),
+          config.timezone,
+          config.dailyEvaluationTime,
         ),
       ).unref();
     };
@@ -449,12 +568,74 @@ async function main() {
           }
         }
       },
+      async onSalahMessage(message) {
+        const recorded = recordSalahThreadMessage(db, {
+          userId: SEED_USER_ID,
+          threadId: message.channelId,
+          date: localDateFor(new Date(), config.timezone),
+          content: message.content ?? "",
+          discordMessageId: message.id,
+        });
+        if (!recorded.accepted || !recorded.prayerName || !recorded.result?.completed)
+          return;
+        await message.react("🕌").catch((error) =>
+          console.error(
+            "salah progress reaction failed:",
+            error instanceof Error ? error.message : error,
+          ),
+        );
+        await replyInChunks(
+          message,
+          formatSalahCompletionReply(recorded.prayerName, recorded.result.allCompleted, {
+            completedCount: recorded.result.completedCount,
+            totalCount: recorded.result.totalCount,
+          }),
+        ).catch((error) =>
+          console.error(
+            "salah completion reply failed:",
+            error instanceof Error ? error.message : error,
+          ),
+        );
+        notifier.notify({
+          userId: SEED_USER_ID,
+          type: "system",
+          title: `✅ ${recorded.prayerName} completed.`,
+          body: [
+            `🔥 Today's Salah Progress: ${recorded.result.completedCount}/${recorded.result.totalCount}`,
+            recorded.result.allCompleted ? "🎉 All five prayers completed." : null,
+          ].filter(Boolean).join("\n"),
+          metadata: {
+            source: "salah",
+            prayerName: recorded.prayerName,
+            date: localDateFor(new Date(), config.timezone),
+          },
+        });
+        scheduleSalahReminders();
+        api.broadcast("salah.updated", {
+          userId: SEED_USER_ID,
+          reason: "thread_message",
+        });
+        api.broadcast("xp", {
+          userId: SEED_USER_ID,
+          xpAwarded: recorded.result.xpAwarded,
+        });
+        api.broadcast("stats.player.updated", { userId: SEED_USER_ID });
+        api.broadcast("notification", {
+          type: "system",
+          userId: SEED_USER_ID,
+          title: recorded.result.allCompleted
+            ? "Daily Salah Completed"
+            : `${recorded.prayerName} completed`,
+        });
+      },
     });
     client.on("clientReady", () => {
       discordStatus = "connected";
       dailyPublisher = createDailyQuestPublisher(client);
+      salahPublisher = createSalahPublisher(client);
       resolveDailyQuestsChannel = () =>
         resolveDailyQuestChannel(client, config.trackedGuildId);
+      resolveSalahChannelId = () => resolveSalahChannel(client, config.trackedGuildId);
       if (deliveryEnabled && config.systemOutputChannelId) {
         systemSend = createChannelMessageSender(
           client,
@@ -468,7 +649,14 @@ async function main() {
           error instanceof Error ? error.message : error,
         ),
       );
+      void runSalahCreate().catch((error) =>
+        console.error(
+          "salah creation failed:",
+          error instanceof Error ? error.message : error,
+        ),
+      );
       scheduleCreation();
+      scheduleSalahCreation();
     });
     client.on("shardDisconnect", () => {
       discordStatus = "disconnected";

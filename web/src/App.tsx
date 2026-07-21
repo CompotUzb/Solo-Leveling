@@ -10,6 +10,7 @@ import {
   PlayerStats,
   Profile,
   RecentActivity,
+  SalahTracker,
   WeeklyReportSection,
   XpBar,
 } from "./sections.js";
@@ -21,6 +22,7 @@ import type {
   NotificationsResponse,
   PlayerStatsResponse,
   QuestsResponse,
+  SalahSnapshot,
   Summary,
   TimelineResponse,
   WeeklyReport,
@@ -42,6 +44,7 @@ export function App() {
     refreshKey,
   ]);
   const daily = useEndpoint<DailySnapshot>("/api/daily", [refreshKey]);
+  const salah = useEndpoint<SalahSnapshot>("/api/salah", [refreshKey]);
   const quests = useEndpoint<QuestsResponse>("/api/quests", [refreshKey]);
   const timeline = useEndpoint<TimelineResponse>("/api/timeline?limit=20", [
     refreshKey,
@@ -85,6 +88,7 @@ export function App() {
         <XpBar summary={summary} />
         <PlayerStats player={player} />
         <ActivityMetrics summary={summary} />
+        <SalahTracker salah={salah} />
         <MainQuests quests={quests} />
         <Notifications notifications={notifications} />
         <Achievements achievements={achievements} />

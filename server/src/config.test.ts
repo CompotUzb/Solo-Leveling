@@ -104,6 +104,29 @@ describe("loadConfig", () => {
     expect(config.dailyQuestTierOverride).toBe(2);
   });
 
+  it("loads Salah configuration and adds its channel to the whitelist", () => {
+    const config = loadConfig({
+      ...baseEnv,
+      SALAH_CHANNEL_ID: "salah",
+      ENABLE_SALAH_TRACKER: "true",
+      CITY: "Tashkent",
+      COUNTRY: "Uzbekistan",
+      CALCULATION_METHOD: "2",
+    });
+    expect(config).toMatchObject({
+      salahChannelId: "salah",
+      enableSalahTracker: true,
+      salahCity: "Tashkent",
+      salahCountry: "Uzbekistan",
+      salahCalculationMethod: 2,
+    });
+    expect(config.trackedChannelIds).toContain("salah");
+    expect(publicConfig(config)).toMatchObject({
+      salahConfigured: true,
+      salahEnabled: true,
+    });
+  });
+
   it("ignores the tier override in production", () => {
     const config = loadConfig({
       ...baseEnv,
