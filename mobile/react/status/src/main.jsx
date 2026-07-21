@@ -15,6 +15,7 @@ const FALLBACK_APPS = [
 
 const FALLBACK = {
   penaltyActive: false,
+  accessibilityEnabled: false,
   penaltyReason: "",
   questStatus: "unknown",
   questCompletedCount: 0,
@@ -95,6 +96,7 @@ function Metric({ icon, label, value, sub, tone, progress }) {
 
 function StatusScreen({ data, syncing, runAction }) {
   const active = Boolean(data.penaltyActive);
+  const blockerReady = Boolean(data.accessibilityEnabled);
   const progress = Math.max(0, Math.min(Number(data.dailyQuestProgressPercent) || 0, 100));
   return <>
     <Header title="Solo Tracker" subtitle="Discipline Engine" syncing={syncing} />
@@ -119,9 +121,9 @@ function StatusScreen({ data, syncing, runAction }) {
 
     <SectionTitle>Alerts</SectionTitle>
     <div className="page-pad">
-      <Card className={`alert-card ${data.lastError ? "warning" : "success"}`}>
-        <span className="alert-icon"><Icon name={data.lastError ? "warning" : "check"} size={17} /></span>
-        <div><b>{data.lastError ? "Connection Warning" : "All Systems Nominal"}</b><p>{data.lastError || "No active connection or penalty warnings."}</p></div>
+      <Card className={`alert-card ${data.lastError || !blockerReady ? "warning" : "success"}`}>
+        <span className="alert-icon"><Icon name={data.lastError || !blockerReady ? "warning" : "check"} size={17} /></span>
+        <div><b>{data.lastError ? "Connection Warning" : !blockerReady ? "App Blocker Offline" : "All Systems Nominal"}</b><p>{data.lastError || (!blockerReady ? "Enable the Solo Leveling accessibility service. Selected apps are not being blocked." : "Server sync and app blocking are operational.")}</p></div>
       </Card>
     </div>
 
@@ -137,9 +139,10 @@ function StatusScreen({ data, syncing, runAction }) {
 function AppsScreen({ data }) {
   const apps = data.apps?.length ? data.apps : FALLBACK.apps;
   const count = apps.filter(app => app.blocked).length;
+  const enforcing = Boolean(data.penaltyActive && data.accessibilityEnabled && count);
   return <>
     <Header title="Blocked Apps" subtitle="Selected apps are restricted when penalty is active." />
-    <div className="app-summary page-pad"><span><i className={count ? "danger-dot" : ""} /><Label>{count} of {apps.length} apps blocked</Label></span><span className="pill danger">{count ? "BLOCKING" : "INACTIVE"}</span></div>
+    <div className="app-summary page-pad"><span><i className={enforcing ? "danger-dot" : ""} /><Label>{count} of {apps.length} apps selected</Label></span><span className={`pill ${enforcing ? "danger" : ""}`}>{enforcing ? "ENFORCING" : data.accessibilityEnabled ? "STANDBY" : "OFFLINE"}</span></div>
     <div className="app-list page-pad">
       {apps.map((app, index) => {
         const meta = FALLBACK_APPS.find(x => x[1] === app.packageName) || [app.name, app.packageName, app.name.slice(0, 2), "#38E1FF"];

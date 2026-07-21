@@ -82,6 +82,7 @@ public final class MainActivity extends Activity {
             JSONObject json = new JSONObject();
             try {
                 json.put("penaltyActive", SoloPrefs.penaltyActive(MainActivity.this));
+                json.put("accessibilityEnabled", SoloPrefs.accessibilityServiceEnabled(MainActivity.this));
                 json.put("penaltyReason", SoloPrefs.penaltyReason(MainActivity.this));
                 json.put("questStatus", SoloPrefs.questStatus(MainActivity.this));
                 json.put("questCompletedCount", SoloPrefs.questCompletedCount(MainActivity.this));
@@ -125,7 +126,7 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface
         public void openAccessibilitySettings() {
-            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+            runOnUiThread(MainActivity.this::openAccessibilitySettings);
         }
 
         @JavascriptInterface
@@ -145,6 +146,12 @@ public final class MainActivity extends Activity {
                 syncDaily(false);
             });
         }
+    }
+
+    private void openAccessibilitySettings() {
+        Intent settings = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+        settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(settings);
     }
 
     private void syncDaily(boolean showToast) {
