@@ -8,8 +8,6 @@ public class SocialBlockerAccessibilityService extends AccessibilityService {
     private static final long SYNC_INTERVAL_MS = 30_000L;
     private volatile boolean refreshing;
     private long lastRefreshMs;
-    private String lastBlockedPackage = "";
-    private long lastBlockedAtMs;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -22,12 +20,9 @@ public class SocialBlockerAccessibilityService extends AccessibilityService {
         if (!SoloPrefs.penaltyActive(this)) return;
         if (!SoloPrefs.isBlockedPackage(this, packageName)) return;
 
-        long now = System.currentTimeMillis();
-        if (packageName.equals(lastBlockedPackage) && now - lastBlockedAtMs < 1500L) return;
-        lastBlockedPackage = packageName;
-        lastBlockedAtMs = now;
-
-        performGlobalAction(GLOBAL_ACTION_HOME);
+        // Cover the blocked app directly. Sending HOME before launching this
+        // activity races with the asynchronous global action on some OEM builds,
+        // where HOME can execute last and hide the blocker screen.
         Intent intent = new Intent(this, BlockActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         intent.putExtra("blocked_package", packageName);

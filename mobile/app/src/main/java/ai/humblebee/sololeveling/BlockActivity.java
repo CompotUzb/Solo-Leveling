@@ -114,4 +114,13 @@ public class BlockActivity extends Activity {
             });
         }).start();
     }
+
+    @Override
+    public void onBackPressed() {
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.addCategory(Intent.CATEGORY_HOME);
+        home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(home);
+        finishAndRemoveTask();
+    }
 }
