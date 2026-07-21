@@ -12,12 +12,6 @@ cd "$APP_DIR"
 echo "== Current git status =="
 git status --short
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "ERROR: Local changes found. Commit/stash them before deploy."
-  git status --short
-  exit 1
-fi
-
 echo "== Pull latest code =="
 git fetch origin "$BRANCH"
 git pull --ff-only origin "$BRANCH"
