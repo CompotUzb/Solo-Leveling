@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useEndpoint } from "./api.js";
-import { subscribeToDashboardEvents } from "./live.js";
+import { useEndpoint } from "./lib/api.js";
+import { subscribeToDashboardEvents } from "./lib/live.js";
 import {
   Achievements,
   ActivityMetrics,
@@ -13,7 +13,7 @@ import {
   SalahTracker,
   WeeklyReportSection,
   XpBar,
-} from "./sections.js";
+} from "./sections/index.js";
 import type {
   AchievementsResponse,
   Boundaries,
@@ -26,7 +26,7 @@ import type {
   Summary,
   TimelineResponse,
   WeeklyReport,
-} from "./types.js";
+} from "./lib/types.js";
 
 /**
  * The dashboard composes one independent data fetch per live section. A shared

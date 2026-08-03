@@ -31,6 +31,29 @@ By default `.env.example` has `SKIP_DISCORD_LOGIN=true`, so the API and dashboar
 
 Required: `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `TRACKED_GUILD_ID`, `TRACKED_CHANNEL_IDS`, `DATABASE_PATH`. Configure `DAILY_QUESTS_CHANNEL_ID` for automatic Daily Quest threads. Optional scheduling values: `DAILY_QUEST_CREATE_TIME` (default `06:00`) and `DAILY_EVALUATION_TIME` (default `00:00`).
 
+Node.js 22 or 24 is supported. `better-sqlite3` ships prebuilt native binaries for both; on any other major version it falls back to compiling from source and needs a local toolchain.
+
+## API access control
+
+The API is unauthenticated by default, which is correct on `127.0.0.1`. Any other bind — Docker, a LAN address for the Android blocker, or the cloud smoke deploy below — is reachable by anyone who can route to it, and every write endpoint (award XP, clear a penalty, allocate stat points) is open. Set a shared secret in that case:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+```txt
+API_AUTH_TOKEN=<the generated value>
+CORS_ALLOWED_ORIGINS=https://your-dashboard-host   # optional; blank reflects any origin
+```
+
+With the token set, every `/api/*` route requires it (`/api/health` stays open so uptime probes keep working). Clients may send it three ways:
+
+- `Authorization: Bearer <token>` — the dashboard and any HTTP client
+- `x-api-token: <token>` — the Android blocker
+- `?token=<token>` — the SSE stream, because `EventSource` cannot set headers
+
+Open the dashboard once at `http://host:3333/?token=<token>`. It stores the token, strips it from the URL, and sends it on every later request. `pnpm app doctor` reports whether the API is currently open and warns when it is bound off-machine without a token.
+
 ## Automatic Daily Quest
 
 At the configured local creation time, the bot reads the Hunter's current rank, selects the highest permitted Daily Quest tier, posts one checklist, and creates a `Day-N` thread. E/D receive Beginner, C/B/A receive Intermediate, and S/National-Level/Monarch receive The Sung Jin-Woo tier. Only messages in that stored active thread are parsed for progress. Creation and metric ingestion are idempotent.
@@ -113,10 +136,13 @@ Do not bake `.env` into the image; `.dockerignore` excludes local env files and 
 
 For a temporary public URL, deploy with `Dockerfile.deploy` and keep Discord skipped. This is suitable for connecting the Android app to the dashboard/API from a phone, but free hosts with ephemeral disks can reset the SQLite database on restart.
 
+A public URL means a public API. Set `API_AUTH_TOKEN` (see [API access control](#api-access-control)) before deploying, or anyone who finds the URL can read and rewrite your progression.
+
 Set these environment variables on the host:
 
 ```txt
 SKIP_DISCORD_LOGIN=true
+API_AUTH_TOKEN=replace_with_a_long_random_string
 DISCORD_TOKEN=skip
 DISCORD_CLIENT_ID=skip
 TRACKED_GUILD_ID=skip
@@ -135,7 +161,8 @@ If the host injects `PORT`, the server uses it automatically. Otherwise set `API
 
 ## Privacy boundaries
 
-- The API binds to the configured local host by default.
+- The API binds to the configured local host by default, and `API_AUTH_TOKEN` guards it on any non-loopback bind.
+- `/api/config/boundaries` reports tracked-channel configuration only. Server filesystem paths are never served over HTTP; `pnpm app doctor` prints them locally.
 - Only `TRACKED_GUILD_ID` and `TRACKED_CHANNEL_IDS` are persisted.
 - DMs, unlisted channels, presence, voice, typing, reactions, and member lists are ignored.
 - Message content is not stored by default. With `STORE_MESSAGE_CONTENT=false`, raw Discord rows keep only IDs, timestamps, attachment counts, and `contentLength`; the stored `content` field is empty.
@@ -155,6 +182,30 @@ data/         local SQLite files (gitignored)
 scripts/      deployment helper scripts
 docs/         runbooks and project documentation
 .github/      CI/CD workflow
+```
+
+Source is grouped by domain, and every module keeps its `*.test.ts` beside it:
+
+```text
+server/src/
+  index.ts          process entry: wiring, schedulers, Discord lifecycle
+  cli.ts            `pnpm app <command>` entry
+  core/             config, SQLite access, migrations, tracked-channel boundary
+  api/              Fastify routes, SSE stream, auth guard
+  discord/          discord.js client, command routing, message ingestion
+  progression/      XP ledger, ranks, the eight player stats, achievements
+  quests/           Main Quest model, lifecycle, ids, AI drafting, commands
+  daily/            Daily Quest engine and the Discord thread workflow
+  salah/            prayer schedule, reminders, evaluation
+  reporting/        notifications, weekly reports, daily/weekly summaries
+
+web/src/
+  main.tsx          bootstrap
+  App.tsx           section composition and live-refresh wiring
+  lib/              typed fetch layer, SSE subscription, formatters, API types
+  components/       shared presentational primitives (Card, Async, Badge…)
+  sections/         one module per dashboard panel, re-exported via index.ts
+  styles.css        dashboard theme
 ```
 
 API endpoints: `/api/health`, `/api/config/boundaries`, `/api/stats/summary`, `/api/timeline`, `/api/notifications`, `/api/penalties`, `/api/summaries/today`, `/api/summaries/week`, `/api/events/stream`.

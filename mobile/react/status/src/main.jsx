@@ -29,6 +29,7 @@ const FALLBACK = {
   lastError: "",
   serverUrl: "http://10.0.2.2:3333",
   userId: "local-user",
+  apiToken: "",
   systemTopInsetDp: 28,
   systemBottomInsetDp: 0,
   apps: FALLBACK_APPS.map(([name, packageName]) => ({ name, packageName, blocked: true })),
@@ -159,7 +160,12 @@ function AppsScreen({ data }) {
 function SettingsScreen({ data }) {
   const [serverUrl, setServerUrl] = useState(data.serverUrl);
   const [userId, setUserId] = useState(data.userId);
-  useEffect(() => { setServerUrl(data.serverUrl); setUserId(data.userId); }, [data.serverUrl, data.userId]);
+  const [apiToken, setApiToken] = useState(data.apiToken ?? "");
+  useEffect(() => {
+    setServerUrl(data.serverUrl);
+    setUserId(data.userId);
+    setApiToken(data.apiToken ?? "");
+  }, [data.serverUrl, data.userId, data.apiToken]);
   return <>
     <Header title="Settings" subtitle="Configure the connection to your Solo Tracker server." />
     <SectionTitle>Server Connection</SectionTitle>
@@ -169,7 +175,9 @@ function SettingsScreen({ data }) {
         <p>The HTTP base URL used for daily-state synchronization.</p>
         <label><Label>User ID</Label><input value={userId} onChange={e => setUserId(e.target.value)} placeholder="local-user" autoCapitalize="none" /></label>
         <p>Identity sent with requests to the configured backend.</p>
-        <button className="button primary" onClick={() => nativeCall("saveSettings", serverUrl, userId)}><Icon name="save" size={15} />Save Settings</button>
+        <label><Label>API Token</Label><input type="password" value={apiToken} onChange={e => setApiToken(e.target.value)} placeholder="leave blank if the server is open" autoCapitalize="none" /></label>
+        <p>Required only when the server runs with API_AUTH_TOKEN set. Leave blank for a local, unauthenticated server.</p>
+        <button className="button primary" onClick={() => nativeCall("saveSettings", serverUrl, userId, apiToken)}><Icon name="save" size={15} />Save Settings</button>
       </Card>
       <Card className="info-card"><span><Icon name="info" size={17} /></span><div><b>Connection Guide</b><p><strong>Android Emulator</strong><code>http://10.0.2.2:3333</code><strong>Physical device</strong><span>Use the PC LAN address or a public HTTPS deployment.</span></p></div></Card>
     </div>

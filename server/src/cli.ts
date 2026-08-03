@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadConfig, publicConfig } from "./config.js";
-import { applyMigrations, migrate, openDatabase } from "./db.js";
-import { resetLocalData } from "./resetLocalData.js";
+import { loadConfig, publicConfig } from "./core/config.js";
+import { isExternallyReachableHost } from "./api/auth.js";
+import { applyMigrations, migrate, openDatabase } from "./core/db.js";
+import { resetLocalData } from "./core/resetLocalData.js";
 
 async function main() {
   const command = process.argv[2] ?? "doctor";
@@ -20,11 +21,23 @@ async function main() {
         {
           ok: true,
           config: publicConfig(config),
+          // Local-only diagnostics: these are printed on this machine, not served over HTTP.
+          databasePath: config.databasePath,
           databaseDirectoryExists: fs.existsSync(
             path.dirname(path.resolve(config.databasePath)),
           ),
+          apiHost: config.apiHost,
           discordLogin: config.skipDiscordLogin ? "skipped" : "enabled",
           tokenLoaded: Boolean(config.discordToken),
+          apiAuth: config.apiAuthToken ? "required" : "open",
+          corsAllowedOrigins: config.corsAllowedOrigins.length
+            ? config.corsAllowedOrigins
+            : "reflect-request-origin",
+          warnings: [
+            isExternallyReachableHost(config.apiHost) && !config.apiAuthToken
+              ? `API_HOST=${config.apiHost} is reachable off this machine and API_AUTH_TOKEN is not set: every endpoint is writable by anyone who can reach it.`
+              : null,
+          ].filter(Boolean),
         },
         null,
         2,

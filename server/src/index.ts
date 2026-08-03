@@ -1,12 +1,13 @@
-import { loadConfig } from "./config.js";
+import { loadConfig } from "./core/config.js";
 import {
   migrate,
   loadTrackedBoundary,
   openDatabase,
   storeRawMessage,
   SEED_USER_ID,
-} from "./db.js";
-import { createApi, type DiscordStatus } from "./api.js";
+} from "./core/db.js";
+import { createApi, type DiscordStatus } from "./api/api.js";
+import { isExternallyReachableHost } from "./api/auth.js";
 import {
   createDiscordClient,
   createChannelMessageSender,
@@ -15,11 +16,11 @@ import {
   resolveDailyQuestChannel,
   resolveSalahChannel,
   replyInChunks,
-} from "./bot.js";
-import { createNotifier } from "./notifications.js";
-import { getRankSnapshot } from "./xp.js";
-import { awardMessageStats } from "./stats.js";
-import { getDailyQuest, runDailyEvaluation } from "./dailyQuests.js";
+} from "./discord/bot.js";
+import { createNotifier } from "./reporting/notifications.js";
+import { getRankSnapshot } from "./progression/xp.js";
+import { awardMessageStats } from "./progression/stats.js";
+import { getDailyQuest, runDailyEvaluation } from "./daily/dailyQuests.js";
 import {
   createDailyQuestForDate,
   formatDailyCompletionReply,
@@ -31,7 +32,7 @@ import {
   millisecondsUntilLocalTime,
   recordDailyThreadMessage,
   type DailyQuestPublisher,
-} from "./dailyWorkflow.js";
+} from "./daily/dailyWorkflow.js";
 import {
   createSalahForDate,
   formatSalahCompletionReply,
@@ -40,13 +41,25 @@ import {
   recordSalahThreadMessage,
   runSalahEvaluation,
   type SalahPublisher,
-} from "./salah.js";
-import { buildDailySummary, buildWeeklySummary } from "./summaries.js";
-import { suggestMainQuestDraft } from "./mainQuestAi.js";
-import { createMainQuestCommandHandler } from "./mainQuestCommands.js";
+} from "./salah/salah.js";
+import { buildDailySummary, buildWeeklySummary } from "./reporting/summaries.js";
+import { suggestMainQuestDraft } from "./quests/mainQuestAi.js";
+import { createMainQuestCommandHandler } from "./quests/mainQuestCommands.js";
 
 async function main() {
   const config = loadConfig();
+
+  // An API bound past loopback with no shared secret lets anyone who can reach the URL award
+  // XP, clear penalties, and read the full activity history. Warn rather than refuse to start,
+  // so an existing deployment is not knocked over by an upgrade.
+  if (isExternallyReachableHost(config.apiHost) && !config.apiAuthToken) {
+    console.warn(
+      `WARNING: API is bound to ${config.apiHost} with no API_AUTH_TOKEN set. ` +
+        "Every endpoint is writable by anyone who can reach this host. " +
+        "Set API_AUTH_TOKEN in .env to require a bearer token.",
+    );
+  }
+
   migrate(config);
   const db = openDatabase(config.databasePath);
   const boundary = loadTrackedBoundary(config);

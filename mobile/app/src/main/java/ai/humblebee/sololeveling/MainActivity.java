@@ -96,6 +96,7 @@ public final class MainActivity extends Activity {
                 json.put("lastError", SoloPrefs.lastError(MainActivity.this));
                 json.put("serverUrl", SoloPrefs.serverUrl(MainActivity.this));
                 json.put("userId", SoloPrefs.userId(MainActivity.this));
+                json.put("apiToken", SoloPrefs.apiToken(MainActivity.this));
                 json.put("systemTopInsetDp", systemBarInsetDp(true));
                 json.put("systemBottomInsetDp", systemBarInsetDp(false));
 
@@ -137,9 +138,10 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void saveSettings(String serverUrl, String userId) {
+        public void saveSettings(String serverUrl, String userId, String apiToken) {
             SoloPrefs.setServerUrl(MainActivity.this, serverUrl);
             SoloPrefs.setUserId(MainActivity.this, userId);
+            SoloPrefs.setApiToken(MainActivity.this, apiToken);
             runOnUiThread(() -> {
                 Toast.makeText(MainActivity.this, "Settings saved", Toast.LENGTH_SHORT).show();
                 notifyWebApp();

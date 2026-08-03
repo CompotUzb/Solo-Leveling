@@ -22,8 +22,16 @@ env:
 
 jobs:
   validate:
-    name: Lint, test, and build
+    name: Lint, test, and build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+
+    # 22 is what the Docker image runs; 24 is what current developer machines default to.
+    # better-sqlite3 ships prebuilt binaries for both, and testing both catches a native
+    # binding mismatch in CI instead of on someone's laptop.
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["22", "24"]
 
     steps:
       - name: Check out repository
@@ -37,7 +45,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: pnpm
 
       - name: Install dependencies
@@ -92,15 +100,32 @@ jobs:
             -e DISCORD_CLIENT_ID=placeholder \
             -e TRACKED_GUILD_ID=placeholder \
             -e TRACKED_CHANNEL_IDS=placeholder \
+            -e API_AUTH_TOKEN=smoke-test-token \
             -p 3333:3333 \
             solo-leveling-smoke)
           cleanup() { docker rm -f "$cid" >/dev/null 2>&1 || true; }
           trap cleanup EXIT
+
+          ready=0
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3333/api/health; then
-              exit 0
+              ready=1
+              break
             fi
             sleep 1
           done
-          docker logs "$cid"
-          exit 1
+          if [ "$ready" -ne 1 ]; then
+            docker logs "$cid"
+            exit 1
+          fi
+
+          # The image is the artifact that gets deployed to a public URL, so assert that the
+          # auth guard is actually wired up there and not only in unit tests.
+          anonymous=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3333/api/daily)
+          authorized=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer smoke-test-token' http://127.0.0.1:3333/api/daily)
+          echo "anonymous=$anonymous authorized=$authorized"
+          if [ "$anonymous" != "401" ] || [ "$authorized" != "200" ]; then
+            docker logs "$cid"
+            exit 1
+          fi

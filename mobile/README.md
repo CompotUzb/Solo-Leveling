@@ -17,6 +17,10 @@ For Android Emulator, use the default URL:
 http://10.0.2.2:3333
 ```
 
+## API token
+
+`API_HOST=0.0.0.0` exposes the API to everything on the network, so the server should also be started with `API_AUTH_TOKEN` set (see the root README). Paste the same value into **Settings → API Token** in the app; it is sent as an `x-api-token` header on every request. Leave the field blank when the server runs unauthenticated on loopback.
+
 ## Blocking model
 
 Android does not let a normal app uninstall or truly own Instagram/TikTok. This app uses AccessibilityService:
