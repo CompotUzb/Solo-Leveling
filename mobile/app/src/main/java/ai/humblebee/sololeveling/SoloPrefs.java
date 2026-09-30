@@ -12,6 +12,7 @@ final class SoloPrefs {
     static final String PREFS = "solo_tracker_mobile";
     private static final String KEY_SERVER_URL = "server_url";
     private static final String KEY_USER_ID = "user_id";
+    private static final String KEY_API_TOKEN = "api_token";
     private static final String KEY_BLOCKED_PACKAGES = "blocked_packages";
     private static final String KEY_PENALTY_ACTIVE = "penalty_active";
     private static final String KEY_PENALTY_REASON = "penalty_reason";
@@ -61,6 +62,18 @@ final class SoloPrefs {
     static void setUserId(Context context, String value) {
         String cleaned = value == null ? "" : value.trim();
         prefs(context).edit().putString(KEY_USER_ID, cleaned.isEmpty() ? DEFAULT_USER_ID : cleaned).apply();
+    }
+
+    /**
+     * Shared secret for a server started with API_AUTH_TOKEN. Empty means the server is
+     * unauthenticated, which is the normal case for a local run on the same LAN.
+     */
+    static String apiToken(Context context) {
+        return prefs(context).getString(KEY_API_TOKEN, "");
+    }
+
+    static void setApiToken(Context context, String value) {
+        prefs(context).edit().putString(KEY_API_TOKEN, value == null ? "" : value.trim()).apply();
     }
 
     static Set<String> blockedPackages(Context context) {

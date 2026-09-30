@@ -22,7 +22,7 @@ final class SoloApiClient {
             String url = SoloPrefs.serverUrl(context)
                     + "/api/daily?userId="
                     + URLEncoder.encode(SoloPrefs.userId(context), "UTF-8");
-            JSONObject root = requestJson("GET", url, null);
+            JSONObject root = requestJson(context, "GET", url, null);
             return PenaltyState.fromDailyJson(root);
         } catch (Exception error) {
             return PenaltyState.error(error.getMessage() == null ? "Sync failed" : error.getMessage());
@@ -35,19 +35,24 @@ final class SoloApiClient {
             JSONObject body = new JSONObject()
                     .put("userId", SoloPrefs.userId(context))
                     .put("note", note == null ? "Mobile penalty quest completed" : note);
-            JSONObject root = requestJson("POST", url, body.toString());
+            JSONObject root = requestJson(context, "POST", url, body.toString());
             return PenaltyState.fromDailyJson(root);
         } catch (Exception error) {
             return PenaltyState.error(error.getMessage() == null ? "Flush failed" : error.getMessage());
         }
     }
 
-    private static JSONObject requestJson(String method, String url, String body) throws Exception {
+    private static JSONObject requestJson(Context context, String method, String url, String body)
+            throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setConnectTimeout(TIMEOUT_MS);
         connection.setReadTimeout(TIMEOUT_MS);
         connection.setRequestMethod(method);
         connection.setRequestProperty("Accept", "application/json");
+        // Sent only when the server was started with API_AUTH_TOKEN; an unauthenticated
+        // local server ignores the header.
+        String apiToken = SoloPrefs.apiToken(context);
+        if (!apiToken.isEmpty()) connection.setRequestProperty("x-api-token", apiToken);
         if (body != null) {
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json");

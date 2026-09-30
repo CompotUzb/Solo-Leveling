@@ -16,6 +16,13 @@ Treat this repository as a local-first Discord activity tracker:
 - `data/`: local SQLite files, ignored by git.
 - `mobile/`: native Android client that calls server APIs and uses AccessibilityService for app blocking.
 
+Server and web source are grouped by domain, with each `*.test.ts` beside the module it covers:
+
+- `server/src/`: `index.ts` and `cli.ts` are the two entry points; everything else lives in `core/` (config, db, migrations, boundary), `api/` (Fastify routes, SSE, auth guard), `discord/`, `progression/` (xp, stats, achievements), `quests/`, `daily/`, `salah/`, `reporting/`.
+- `web/src/`: `lib/` (fetch layer, SSE, formatters, API types), `components/` (shared primitives), `sections/` (one module per dashboard panel, re-exported through `sections/index.ts`).
+
+Put new modules in the folder that owns the domain rather than at the package root.
+
 ## Commands
 
 Use pnpm from the repository root:
@@ -60,3 +67,4 @@ pnpm --filter @solo-leveling/shared build
 - Daily Quest thread creation and metric ingestion are intended to be idempotent.
 - `DAILY_QUEST_TIER_OVERRIDE` is development/test-only and must not bypass rank restrictions.
 - The mobile client does not read SQLite directly; it calls `/api/daily` and `/api/daily/flush`.
+- `API_AUTH_TOKEN` is optional and off by default. When set, every `/api/*` route except `/api/health` requires it. New routes are covered automatically by the `onRequest` hook in `server/src/api/api.ts` — do not add per-route auth checks.
